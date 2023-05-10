@@ -33,7 +33,7 @@ int main(int argc, char *argv[]){
             int prime = r_buf[0];
             printf("prime %d\n",prime);
             cnt = 0;
-            for(int i=1;i<30;i++){
+            for(int i=1;i<34;i++){
                 if(r_buf[i] == 0) break;
                 if(r_buf[i] % prime != 0){
                     w_buf[cnt] = r_buf[i];
