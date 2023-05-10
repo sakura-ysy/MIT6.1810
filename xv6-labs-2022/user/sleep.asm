@@ -5,11 +5,11 @@ user/_sleep:     file format elf64-littleriscv
 Disassembly of section .text:
 
 0000000000000000 <main>:
+#include "user/user.h"
 #include "kernel/fs.h"
 
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    0:	1141                	addi	sp,sp,-16
    2:	e406                	sd	ra,8(sp)

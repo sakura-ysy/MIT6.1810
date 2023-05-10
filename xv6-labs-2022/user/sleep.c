@@ -4,8 +4,7 @@
 #include "kernel/fs.h"
 
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     if(argc < 2){
         printf("sleep: missing time parameter\n");
