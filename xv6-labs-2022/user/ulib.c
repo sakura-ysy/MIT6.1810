@@ -2,7 +2,6 @@
 #include "kernel/stat.h"
 #include "kernel/fcntl.h"
 #include "user/user.h"
-
 //
 // wrapper so that it's OK if main() does not call exit().
 //

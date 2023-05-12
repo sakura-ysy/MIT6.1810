@@ -25,6 +25,9 @@ fmtname(char *path)
 void
 ls(char *path)
 {
+
+  printf("path: %shhh\n",path);
+
   char buf[512], *p;
   int fd;
   struct dirent de;
