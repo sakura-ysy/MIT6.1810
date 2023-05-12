@@ -37,7 +37,7 @@ void find(char *path, char *target){
     }
     
     if(fstat(fd, &st) < 0){
-        printf("find1: cannot stat %s\n", path);
+        printf("find: cannot stat %s\n", path);
         close(fd);
         return;
     }
@@ -63,7 +63,7 @@ void find(char *path, char *target){
             *p++ = '/';
 
             while(read(fd, &de, sizeof(de)) == sizeof(de)){
-                
+
                 if(de.inum == 0) continue;
                 memmove(p,de.name,DIRSIZ);
                 p[DIRSIZ] = 0;
@@ -85,7 +85,6 @@ void find(char *path, char *target){
 
 
 int main(int argc, char *argv[]){
-
     int i;
     if(argc == 2){
         find(".", argv[1]);
