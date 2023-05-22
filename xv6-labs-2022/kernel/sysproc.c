@@ -55,6 +55,8 @@ sys_sleep(void)
   uint ticks0;
 
   argint(0, &n);
+  if(n < 0)
+    n = 0;
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){
@@ -89,3 +91,18 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// 因为trace会设计到进程，所以放在sysproc.c比较合适
+// sys_trace只是给进程赋值mask而已，打印信息的代码应该插桩在syscall()中
+uint64
+sys_trace(void){
+  int mask;
+  argint(0,&mask);
+  if(mask < 0){
+    return -1;
+  }
+  struct proc *p = myproc();
+  p->trace_mask = mask;
+  return 0;
+}
+

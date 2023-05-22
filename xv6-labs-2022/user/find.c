@@ -22,6 +22,7 @@ char* fmtname(char *path){
   return buf;
 }
 
+
 void find(char *path, char *target){
 
     //printf("enter find()\n");

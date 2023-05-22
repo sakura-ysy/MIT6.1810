@@ -1,0 +1,3 @@
+1: usertrap called syscall.
+2: p->trapframe->a7 == 7. It means the id of syscall().
+3: sstatus == 0x120, the SSP bit(bi=t 8) is 1, so we are in S-mode.
