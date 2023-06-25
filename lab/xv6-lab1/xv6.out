@@ -1,13 +1,7 @@
-*** Now run 'gdb' in another window.
 
 xv6 kernel is booting
 
-hart 1 starting
 hart 2 starting
+hart 1 starting
 init: starting sh
-$ sh < xargstest.sh
-$ echo DONE
-$ $ $ $ $ hello
-hello
-hello
-$ $ DONEqemu-system-riscv64: terminating on signal 15 from pid 38976 (make)
+$qemu-system-riscv64: terminating on signal 2
