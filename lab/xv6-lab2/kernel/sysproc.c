@@ -92,7 +92,7 @@ sys_uptime(void)
   return xticks;
 }
 
-// 因为trace会设计到进程，所以放在sysproc.c比较合适
+// 因为trace会涉及到进程，所以放在sysproc.c比较合适
 // sys_trace只是给进程赋值mask而已，打印信息的代码应该插桩在syscall()中
 uint64
 sys_trace(void){
