@@ -378,3 +378,14 @@ sys_sysinfo(void)
 
 最后，将该系统调用在 xv6 中进行注册，过程不再赘述。
 
+### 问题与注意点
+
+`trace children` 测试点 Timeout。
+
+- 代码没错，只是机器性能不好。
+
+- 解决办法：在 `gradelib.py` 中改变超时判断时间，由 30s 改为 100s，后续不够可以再改（在第428行）。
+
+- ``` python
+  def run_qemu_kw(target_base="qemu", make_args=[], timeout=100):
+  ```
