@@ -56,11 +56,11 @@ ugetpid(void)
 主要的代码实现位于 `kernel/proc.c` 中。首先，我们 proc 新增一个字段，存放 usyscall 的地址：
 
  ```c
- // kernel/proc.h
- struct proc {
-   // ...  
-   struct usyscall *usyscall;
- }
+// kernel/proc.h
+struct proc {
+  // ...  
+  struct usyscall *usyscall;
+}
  ```
 
 在 allocproc 时，为其分配一块物理内存，分配方式可参考 trapframe 的分配。
@@ -117,7 +117,14 @@ proc_pagetable(struct proc *p)
 }
 ```
 
-需要注意的一点是，flag 位不仅仅要置位 PTE_R，还要置位 PTE_U，因此只有置位了 PTE_U 的页，用户态才可读，否则无权访问。
+需要注意的一点是，flag 位不仅仅要置位 PTE_R，还要置位 PTE_U。只有置位了 PTE_U 的页，用户态才有权访问，否则只能 supervisor mode 才能访问。RISC-V 一共有三个特权级，如下：
+
+| Level | Encodeing | 特权级           | 缩写 | 权限                       |
+| ----- | --------- | ---------------- | ---- | -------------------------- |
+| 0     | 00        | User/Application | U    | 运行用户程序               |
+| 1     | 01        | Supervisor       | S    | 运行操作系统内核和驱动     |
+| 2     | 10        | -                | -    |                            |
+| 3     | 11        | Machine          | M    | 运行 BootLoader 和其他固件 |
 
 新增完映射后，我们需要在进程 free 时对其解映射，位于函数 proc_freepagetable 中，可以参考 TRAPFRAME 的解映射。
 
@@ -361,6 +368,4 @@ usertests 时报错：FAILED -- lost some free pages 25898 (out of 32455)
       kfree((void*)p->usyscall);
   p->usyscall = 0;
   ```
-
-
 
