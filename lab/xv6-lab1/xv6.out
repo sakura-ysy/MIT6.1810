@@ -1,7 +1,12 @@
 
 xv6 kernel is booting
 
-hart 2 starting
 hart 1 starting
+hart 2 starting
 init: starting sh
-$qemu-system-riscv64: terminating on signal 2
+$ sh < xargstest.sh
+$ echo DONE
+$ $ $ $ $ hello
+hello
+hello
+$ $ DONEqemu-system-riscv64: terminating on signal 15 from pid 95296 (make)

@@ -95,11 +95,15 @@ main(int argc, char *argv[])
 
 ![image-20230625104810549](lab1/image-20230625104810549.png)
 
-每一个方块为一个进程，该进程接受父进程传来的数列，首个元素为素数，然后筛掉首个元素的倍数，将余下的传给子进程，依次递归。实际上，这种算法并不能减少时间复杂度，虽然是多线程，但也是串行的，因此和单线程比没有时间优势。然而就是文档中说的，大部分时刻用多线程并不是为了效率，而是为了清晰。
+每一个方块为一个进程，该进程接受父进程传来的数列，首个元素为素数，然后筛掉首个元素的倍数，将余下的传给子进程，依次递归。这里思考一个问题，为什么多线程可以减少时间复杂度？
+
+实际上，这是一个 **CSP** （Communicating Sequential Processes）模型，类型于 Go 里面的 channel，只不过这里用 pipe 实现。多线程之所以比单线程快，无非是其能够提供**并行**的计算，否则和单线程就没什么区别。这一点我第一次做的时候没有意识到，写的时候没有实现并行计算，虽然过了测试点，但是思想是错误的，未能提供时间优化。
+
+第一次做的时候看见了文档的一句话：大部分时刻用多线程并不是为了效率，而是为了清晰。
 
 > Concurrent programming in this style is interesting for reasons not of efficiency but of clarity
 
-算法弄清了代码就很好实现了，如下：
+导致实现的时候完全串行了，思想跑偏。**错误**的代码实现，如下：
 
 ```c
 int main(int argc, char *argv[]){
@@ -149,6 +153,81 @@ int main(int argc, char *argv[]){
     exit(0);
 }
 ```
+
+可以看到，上述代码虽然用多线程实现了素数筛，但实际是串行的。父线程将自己的一回合筛选完毕后，再把结果传递给子线程，这种实现和单线程没有任何区别，不符合 CSP 模型的思想。正确的优化应该是：
+
+- 多线程首先建立好，父子之间的 pipe 也建立好。
+- 父进程筛出一个数就传递第一个数，子进程立刻读出这个数，然后递归。
+- 父进程不能等全筛完在传递，否则和单线程没区别。
+
+采用上述步骤，重写了代码，线程并行的多线程 prime sieve：
+
+```c
+#define MAX_LEN 36
+
+// 算法思路：https://swtch.com/~rsc/thread/
+
+void sieve(int pipe_read){
+    int fd[2];
+    pipe(fd);
+    int r_size = 0, r_res = 0, first = 0;
+    r_size = read(pipe_read, &r_res, sizeof(int));
+    if(r_size > 0){
+        first = r_res;
+        printf("prime %d\n", first);
+    } else {
+        exit(0);
+    }
+
+    int pid = fork();
+    if(pid == 0){
+        // 子，继续递归
+        close(fd[1]);
+        sieve(fd[0]);
+    } else {
+        // 父，上读-筛选-下传
+        close(fd[0]);
+        while(r_size > 0){
+            if(r_res % first){
+                write(fd[1], &r_res, sizeof(int));
+            }
+            r_size = read(pipe_read, &r_res, sizeof(int));
+        }
+        close(pipe_read);
+        close(fd[1]);
+    }
+}
+
+int main(int argc, char *argv[]){
+    
+    if(argc != 1){
+        printf("primes: need no parameter\n");
+    }
+
+    int fd[2];
+    pipe(fd);
+    int pid = fork();
+    if(pid == 0){
+        // 子, 进入递归
+        close(fd[1]);
+        sieve(fd[0]);
+    } else {
+        // 父，筛选-下传
+        close(fd[0]);
+        printf("prime 2\n");
+        for(int i = 2; i < MAX_LEN; i++){
+            if(i % 2){
+                write(fd[1], &i, sizeof(int));
+            }
+        }
+        close(fd[1]);
+    }
+    wait(NULL);
+    exit(0);
+}
+```
+
+注意到，子进程结束的条件是父进程不再传递数据下来，通过代码  `while(r_size > 0)` 来判定。为什么可以这样？因为 CSP 模型的实现有个前提，读是阻塞的，一定是先写入才能读出，不论是 Go 的 chanel 还是 C 的 pipe。那么 read 什么时候返回 0 呢？当父进程的 pipe 写通道关闭时，子进程 read 不再阻塞，返回 0。因此当子进程 r_size > 0 时就意味了父进程不会继续传递数据了，可以正常结束。
 
 有两点需要重点注意。
 
