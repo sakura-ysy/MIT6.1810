@@ -133,7 +133,7 @@ void backtrace()
   uint64 fp = r_fp();
   uint64 up = PGROUNDUP(fp);
   uint64 down = PGROUNDDOWN(fp);
-  while(fp <= up && fp >= down){
+  while(fp < up && fp > down){
     uint64 ra = fp - 8;
     uint64 pre = fp - 16;
     printf("%p\n",*(uint64*)ra);
@@ -142,11 +142,42 @@ void backtrace()
 }
 ```
 
+此外，实验要求，在发生 panic 时调用 backtrace，因此在 panic 中添加调用：
 
+```c
+// kernel/printf.c
+void
+panic(char *s)
+{
+  pr.locking = 0;
+  printf("panic: ");
+  printf(s);
+  printf("\n");
+  panicked = 1; // freeze uart output from other CPUs
+  backtrace();
+  for(;;)
+    ;
+}
+```
 
+make qemu 后运行 bttest，打印出三个函数的首址：
 
+```shell
+$ bttest
+0x000000008000212c
+0x000000008000201e
+0x0000000080001d14
+```
 
+另开一个终端运行 addr2line -e kernel/kernel，结果如下，为三个函数所在文件：
 
-
-
+```shell
+ubuntu@ubuntu:~/xv6-labs-2022$ addr2line -e kernel/kernel
+0x000000008000212c
+/home/ubuntu/xv6-labs-2022/kernel/sysproc.c:60
+0x000000008000201e
+/home/ubuntu/xv6-labs-2022/kernel/syscall.c:141
+0x0000000080001d14
+/home/ubuntu/xv6-labs-2022/kernel/trap.c:76
+```
 
