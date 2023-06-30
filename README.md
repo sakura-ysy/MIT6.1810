@@ -8,6 +8,7 @@ MIT6.1810 Operating System Engineering 是麻省理工学院计算机科学本�
 
 - 课程官网：https://pdos.csail.mit.edu/6.828/2022/index.html
 - xv6 book：https://pdos.csail.mit.edu/6.828/2022/xv6/book-riscv-rev3.pdf
+- 6.s081 课程 Lecture 翻译：https://github.com/huihongxiao/MIT6.S081
 
 ### Lab 文档
 
