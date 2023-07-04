@@ -376,7 +376,16 @@ sys_sysinfo(void)
 }
 ```
 
-最后，将该系统调用在 xv6 中进行注册，过程不再赘述。
+最后，将该系统调用在 xv6 中进行注册，过程不再赘述。要注意，这里我是新建了 `kernel/sysinfo.c`，因此需要将其写进 Makefile：
+
+```makefile
+// Makefile
+OBJS = \
+  $K/syscall.o \
+  $K/sysproc.o \
+  $K/sysinfo.o\
+  ...
+```
 
 ### 问题与注意点
 
