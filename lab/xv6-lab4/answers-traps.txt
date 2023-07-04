@@ -1,0 +1,59 @@
+> Which registers contain arguments to functions? For example, which register holds 13 in main's call to `printf`?
+
+- a0 ~ a7 存放函数的参数，且编号越小存放越往左的参数。比如在 printf 中，a2 存放参数 13，a1 存放 f(8)+1 的结果 12，a0 存放格式化字符串的首址。汇编如下：
+
+- ```assembly
+  printf("%d %d\n", f(8)+1, 13);
+  24:	4635                	li	a2,13
+  26:	45b1                	li	a1,12
+  28:	00000517          	auipc	a0,0x0
+  2c:	7c850513          	addi	a0,a0,1992 # 7f0 <malloc+0xe8>
+  30:	00000097          	auipc	ra,0x0
+  34:	61a080e7          	jalr	1562(ra) # 64a <printf>
+  ...
+  ```
+
+- 问题的答案在 Lecture 5 中有原话，翻译过来就是：a0 到 a7 寄存器是用来作为函数的参数，如果一个函数有超过 8 个参数，我们就需要用内存了。
+
+>  Where is the call to function `f` in the assembly code for main? Where is the call to `g`? (Hint: the compiler may inline functions.)
+
+- 没有跳转，被编译器 inline 了。正常情况下，main 在调用 printf 之前，应该是要通过 jalr 跳转到 f 的首址的，同样的 f 也要跳转到 g 去。但这里没有这样的语句，而是直接算出了结果 12，这是因为 g 被 inline 进 f 了，同时 f 也被 inline 进了 main。
+
+> At what address is the function `printf` located?
+
+- 0x30+0x61a=0x64a。由如下跳转命令所得：
+
+- ```assembly
+  30:	00000097          	auipc	ra,0x0
+  34:	61a080e7          	jalr	1562(ra) # 64a <printf>
+  ```
+
+- 首先，RISC-V 的 () 运算符是加立即数的操作，1562(ra) <=> ra + 1562。auipc 和 jalr 为常用的跳转命令组合。其中 `auipc a, i` 指将 i 左移 12 位然后和 pc 相加，值赋给寄存器 a，`jalr a` 指无条件跳转到 a 所存地址处。这里进行 auipc 时 pc == 0x30，i = 0，因此 ra == 0x30，故最终跳转位置为 0x30 + 0x61a(1562) = 0x64a，即 printf 的地址。
+
+> What value is in the register `ra` just after the `jalr` to `printf` in `main`?
+
+- 0x34 + 4 = 0x38。auipc 通过 ra 来存储返回地址，其在更新 pc 为跳转地址之前，将当前 pc + 4 赋值给 ra，即返回后下一条指令地址。
+
+> Run the following code.
+>
+> ```
+> 	unsigned int i = 0x00646c72;
+> 	printf("H%x Wo%s", 57616, &i);
+> ```
+>
+> What is the output? [Here's an ASCII table](https://www.asciitable.com/) that maps bytes to characters.
+>
+> The output depends on that fact that the RISC-V is little-endian. If the RISC-V were instead big-endian what would you set `i` to in order to yield the same output? Would you need to change `57616` to a different value?
+>
+> [Here's a description of little- and big-endian](http://www.webopedia.com/TERM/b/big_endian.html) and [a more whimsical description](https://www.rfc-editor.org/ien/ien137.txt).
+
+- He110 World。%x 输出 57616 的十六进制格式 110，%s 输出以 &i 为首址的字符串，因为是小端对齐，所以从低地址到高地址依次是 "0x72"、"0x6c"、"0x64"，遇 0 结尾，即 "rld" 。若为大端对齐，i 需要改为 0x726c6400， 57616 不需要改。
+
+> In the following code, what is going to be printed after `'y='`? (note: the answer is not a specific value.) Why does this happen?
+>
+> ```
+> 	printf("x=%d y=%d", 3);
+> ```
+
+- 取决于寄存器 a2 的值，上述指令需要读取 a1 和 a2 的参数，a1 为 3，a2 没有传入，用 gdb 看一下 a2 的值为多少即可。
+
