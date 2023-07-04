@@ -1,0 +1,14 @@
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ alarmtest
+test0 start
+......alarm!
+test0 passed
+test1 start
+..alarm!
+..alarm!
+.qemu-system-riscv64: terminating on signal 2
