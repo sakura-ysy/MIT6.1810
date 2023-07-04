@@ -88,7 +88,14 @@ allocproc(void)
 }
 ```
 
-proc 有一个字段名为 pagetable，它就是一个 uint64，存放页表的地址。页表的初始化位于函数 proc_pagetable 中，通过 mappages 在页表中注册新的 PTE，参考 TRAPFRAME 的方式，将 USYSCALL 映射到 p->usyscall 中。注意映射之前要先赋值 p->usyscall->pid = p->pid。
+proc 有一个字段名为 pagetable，它就是一个 uint64，存放页表的地址。需要注意的是，它虽然在内核态创建，但是一个 user page table，而不是 kernel page table。
+
+``` c
+// An empty user page table.
+p->pagetable = proc_pagetable(p);
+```
+
+页表的初始化位于函数 proc_pagetable 中，通过 mappages 在页表中注册新的 PTE，参考 TRAPFRAME 的方式，将 USYSCALL 映射到 p->usyscall 中。注意映射之前要先赋值 p->usyscall->pid = p->pid。
 
 ```c
 // kernel/proc.c
@@ -117,7 +124,7 @@ proc_pagetable(struct proc *p)
 }
 ```
 
-需要注意的一点是，flag 位不仅仅要置位 PTE_R，还要置位 PTE_U。只有置位了 PTE_U 的页，用户态才有权访问，否则只能 supervisor mode 才能访问。RISC-V 一共有三个特权级，如下：
+需要注意的一点是，flag 位不仅仅要置位 PTE_R，还要置位 PTE_U，因此只有置位了 PTE_U 的页，用户态才可读，否则无权访问。RISC-V 一共有三个特权级，如下：
 
 | Level | Encodeing | 特权级           | 缩写 | 权限                       |
 | ----- | --------- | ---------------- | ---- | -------------------------- |
