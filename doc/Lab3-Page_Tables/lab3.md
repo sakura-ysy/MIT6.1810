@@ -273,8 +273,8 @@ $
   - 首先，通过 walk 可得到虚拟地址对应的 PTE。其次，PTE 是连续的，那么对应的虚拟地址也应是连续的。最后，一个 PTE 大小为 PGSIZE，因此只要将虚拟地址按 PGSIZE 累加即可得到后续的 PTE。
 
   - ```c
-    walk(pagetable, vaddr, 1); // 当前PTE
-    walk(pagetable, vaddr + PGSIZE * i, 1); // 后续第i个PTE
+    walk(pagetable, vaddr, 0); // 当前PTE
+    walk(pagetable, vaddr + PGSIZE * i, 0); // 后续第i个PTE
     ```
 
 PTE_A 的值在 xv6 book 的图 3.2 中有说明，是第 6 位。
@@ -310,7 +310,7 @@ sys_pgaccess(void)
   uint64 res = 0;
 
   for(int i = 0; i < num; i++){
-    pte_t* pte = walk(pagetable, vaddr + PGSIZE * i, 1);
+    pte_t* pte = walk(pagetable, vaddr + PGSIZE * i, 0);
     if(*pte & PTE_A){
       *pte &= (~PTE_A);
       res |= (1L << i);

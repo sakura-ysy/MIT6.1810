@@ -86,7 +86,7 @@ sys_pgaccess(void)
   uint64 res = 0;
 
   for(int i = 0; i < num; i++){
-    pte_t* pte = walk(pagetable, vaddr + PGSIZE * i, 1);
+    pte_t* pte = walk(pagetable, vaddr + PGSIZE * i, 0);
     if(*pte & PTE_A){
       *pte &= (~PTE_A);
       res |= (1L << i);
