@@ -181,3 +181,311 @@ ubuntu@ubuntu:~/xv6-labs-2022$ addr2line -e kernel/kernel
 /home/ubuntu/xv6-labs-2022/kernel/trap.c:76
 ```
 
+### Alarm (hard)
+
+> In this exercise you'll add a feature to xv6 that periodically alerts a process as it uses CPU time. This might be useful for compute-bound processes that want to limit how much CPU time they chew up, or for processes that want to compute but also want to take some periodic action. More generally, you'll be implementing a primitive form of user-level interrupt/fault handlers; you could use something similar to handle page faults in the application, for example. Your solution is correct if it passes alarmtest and 'usertests -q'
+
+本 lab 开始进行 trap 相关实验，虽然标的是 hard，但读完 [Lecture 6](https://github.com/huihongxiao/MIT6.S081/tree/master/lec06-isolation-and-system-call-entry-exit-robert) 后就会发现很简单，顶多一些细节问题，但一定要去读相关 Lecture，不然根本做不动吗，。
+
+trap 共分为三类：
+
+- **系统调用**；
+- 程序出现了类似page fault、运算时除以0的错误，即 **panic**；
+- 一个设备触发了**中断**使得当前程序运行需要响应内核设备驱动；
+
+trap 的流程这里就不赘述了， [Lecture 6](https://github.com/huihongxiao/MIT6.S081/tree/master/lec06-isolation-and-system-call-entry-exit-robert) 中讲的非常详细。本 lab 一共涉及两类 trap，分别为系统调用和时钟中断，核心围绕在 如何进入 trap handle、如何保存寄存器、如何返回用户态等等。
+
+本 lab 的直接要求时实现 sigalarm，什么意思呢？就是当进程调用 sigalarm 时，就会按照 CPU 时钟来定时的执行某一个函数。比如，proc1 调用了 sigalarm(2, func)， 那该进程就会每隔 2 个 CPU 时钟调用一次 func。一共分为 test0、test1、test2、test3，又浅入深的逐步实现该操作。
+
+#### test0
+
+该测试点用来实现如何指定 trap 的返回地址。我们知道，trap 的全过程中，是在 usertrap() 中通过将 epc 保存在 trapframe 中，然后 usertrapret 时重放 trapframe 来做到返回到调用者处的。而在该测试点中，要求更改 p->trapframe->epc，指向任意函数，使得 trap 不按照原路返回，而是到指定函数处。测试代码如下：
+
+```c
+void
+periodic()
+{
+  count = count + 1;
+  printf("alarm!\n");
+  sigreturn();
+}
+
+// tests whether the kernel calls
+// the alarm handler even a single time.
+void
+test0()
+{
+  int i;
+  printf("test0 start\n");
+  count = 0;
+  sigalarm(2, periodic);
+  for(i = 0; i < 1000*500000; i++){
+    if((i % 1000000) == 0)
+      write(2, ".", 1);
+    if(count > 0)
+      break;
+  }
+  sigalarm(0, 0);
+  if(count > 0){
+    printf("test0 passed\n");
+  } else {
+    printf("\ntest0 failed: the kernel never called the alarm handler\n");
+  }
+}
+```
+
+虽然涉及到了系统调用和时钟中断，但 test0 主要还是时钟中断，系统调用只是起到一个标记作用，为什么这么说呢，看接下来的实现就知道了。sys_sigalarm 的注册就省略了。
+
+首先，在 proc 结构中加入三个字段，分别存储 sigalarm 指定的周期、自上一次调用以来的CPU时钟滴答数、func 函数地址。这些在 Lab guide 中有提示：
+
+> Your `sys_sigalarm()` should store the alarm interval and the pointer to the handler function in new fields in the `proc` structure
+>
+> You'll need to keep track of how many ticks have passed since the last call (or are left until the next call) to a process's alarm handler; you'll need a new field in `struct proc` for this too
+
+```c
+// kernel/proc.c
+struct proc {
+  // ...
+  int alarm_ticks;
+  int expired_ticks;
+  uint64 fn;
+}
+```
+
+而 sys_sigalarm 要做的，只是给 alarm_ticks 和 fn 赋值而已：
+
+```c
+// kernel/sysalarm.c
+uint64
+sys_sigalarm(void){
+  int n;
+  uint64 fn;
+  argint(0, &n);
+  argaddr(1, &fn);
+  struct proc* p = myproc();
+  acquire(&p->lock);
+  p->expired_ticks = 0;
+  p->alarm_ticks = n;
+  p->fn = fn;
+  release(&p->lock);
+  return 0;
+}
+```
+
+那么什么时候触发跳转呢？这就是时钟中断的活了。每过一个 CPU 时钟滴答，都会产生一个时钟中断，既然如此，它就会跳转到 usertrap() 中。usertrap() 的三个分支分别处理三种不同的中断，而时钟中断位于分支 ` if(which_dev == 2)` 中，因此只需在其中做手脚即可。
+
+一旦滴答数超过预期，那么就将 p->trapframe->epc 赋值为 func 地址，因为 p->trapframe->epc 存储的是 trap 的返回地址，因此就实现了时钟中断后返回到 func 的操作。注意，func 是用户态的，是当 trap 从内核态返回到用户态时的目的函数。usertrap 代码如下：
+
+```c
+// kernel/trap.c
+void
+usertrap(void)
+{
+  // ...
+  // give up the CPU if this is a timer interrupt.
+  if(which_dev == 2){
+    // lab4
+    acquire(&p->lock);
+    p->expired_ticks ++;
+    if(p->alarm_ticks != 0 && p->expired_ticks >= p->alarm_ticks && p->fn_ret){
+      p->expired_ticks = 0;
+      p->trapframe->epc = p->fn;
+    }
+    release(&p->lock);
+    yield();
+  }
+}
+```
+
+注意传入的 func 函数，发现会调用 sigreturn 系统调用，它的作用很重要，不过 test0 不需要它，这里就先让 sys_sigreturn 返回个 0 就行。
+
+> For now, your `sys_sigreturn` should just return zero.
+
+```c
+// kernel/sysalarm.c
+uint64
+sys_sigreturn(void){
+  return 0;
+}
+```
+
+以上就是 test0 要求的主要内容，其余细节问题（比如 allocproc 初始化字段、定义用户态调用函数等等）这里就不赘述了。总而言之，test0 完成的就是让时钟中断可以返回到指定函数处，那么问题来了，如果修改 p->trapframe->epc，那么怎么返回到原处（发生时钟中断的代码处）呢？是的，返回不了。所以仅靠 test0 实现的部分是远远不够的，test1 就要完成返回原处的任务。
+
+#### test1
+
+该测试点用来让完成 func 后，能返回到时钟中断发生的位置。但是，这种返回实际上新的一个 trap，即系统调用 sigreturn。从时钟中断开始，整个过程进行了两个来回，用户态-> 内核态->用户态->内核态->用户态，用图表示如下：
+
+![image-20230704194817307](lab4/image-20230704194817307.png)
+
+因此，需要在 proc 中存储中断发生处的 epc（+4），即更改前的 p->trapframe->epc，然后在 sigreturn 处将其重新赋值给 p->trapframe->epc，使整套流程正常返回。
+
+但是，上述操作只能让返回正确进行，但返回之后却一塌糊涂，因为寄存器全都被覆盖了。因此，除了保存时钟中断发生时的 epc，还要保存当时的所有寄存器，这些寄存器都暂存在 trapframe，因此备份覆盖之前的 trapframe 即可。在 proc 中定义一个字段用来备份 trapframe：
+
+```c
+// kernel/proc.h
+struct proc {
+  // ...
+  int alarm_ticks;
+  int expired_ticks;
+  uint64 fn;
+  struct trapframe *trapframe_backup;  // new
+}
+```
+
+注意，要在 allocproc() 时为该字段分配内存，并在 freeproc() 时给这片内存 free 了，代码略。在 usertrap 更改 trapframe 之前，将其进行备份：
+
+```c
+// kernel/trap.c
+void
+usertrap(void)
+{
+  // ...
+  if(which_dev == 2){
+    // lab4
+    acquire(&p->lock);
+    p->expired_ticks ++;
+    if(p->alarm_ticks != 0 && p->expired_ticks >= p->alarm_ticks && p->fn_ret){
+      memmove(p->trapframe_backup, p->trapframe, sizeof(struct trapframe)); // new
+      p->expired_ticks = 0;
+      p->trapframe->epc = p->fn;
+    }
+    release(&p->lock);
+    yield();
+  }
+}
+```
+
+然后在 sys_sigreturn 中将其恢复即可：
+
+```c
+uint64
+sys_sigreturn(void){
+  struct proc* p = myproc();
+  acquire(&p->lock);
+  memmove(p->trapframe, p->trapframe_backup, sizeof(struct trapframe));
+  release(&p->lock);
+  return 0;
+}
+```
+
+至此，一套完整的 trap 返回流程就完成了。
+
+#### test2
+
+test2 新增了要求，在 func 在执行的时候，接下来的时钟中断无法再执行 func，也就是 proc 一次只能被时钟触发一个 func。
+
+实现很简单，方法也很多，这里我是通过 flag 记录 func 是否已经返回。然后在时钟滴答数满足条件时进行判断，如果 flag 为 true 则说明已经返回，可以跳转，反之则直接跳过。注意在 allocproc 时将 flag 初始化为 true。不过难受的是，xv6 没有 bool 类型，只能用 int 代替了。
+
+```c
+struct proc {
+  // lab 4
+  int alarm_ticks;
+  int expired_ticks;
+  uint64 fn;
+  struct trapframe *trapframe_backup;
+  int fn_ret; // 1-res, 0-not ret
+}
+
+static struct proc*
+allocproc(void){
+  // ...
+  p->fn_ret = 1;
+}
+```
+
+在 usertrap 中多一层判断，一旦进入，就将其设为 true：
+
+```c
+void
+usertrap(void)
+{
+  // ...
+    if(p->alarm_ticks != 0 && p->expired_ticks >= p->alarm_ticks && p->fn_ret){
+      memmove(p->trapframe_backup, p->trapframe, sizeof(struct trapframe));
+      p->expired_ticks = 0;
+      p->fn_ret = 0;  // new
+      p->trapframe->epc = p->fn;
+    }
+  // ...
+}
+```
+
+接下来就是何时将其设为 false 了。起初，我是想在 usertrapret 中设置的，但这样会影响所有的 trap，显然是不合适的。最后，我在 sys_sigreturn 中将其复位。
+
+```c
+// kernel/sysalarm.c
+uint64
+sys_sigreturn(void){
+  struct proc* p = myproc();
+  acquire(&p->lock);
+  p->fn_ret = 1;  // new
+  memmove(p->trapframe, p->trapframe_backup, sizeof(struct trapframe));
+  release(&p->lock);
+  return 0;
+}
+```
+
+至此，test2 完成。
+
+#### test3
+
+test3 是 6.1810 才有的，6.S081 没有整个，说实话，我没明白这个测试的意义何在。
+
+> Make sure to restore a0. `sigreturn` is a system call, and its return value is stored in a0
+
+先看测试代码：
+
+```c
+void
+test3()
+{
+  uint64 a0;
+
+  sigalarm(1, dummy_handler);
+  printf("test3 start\n");
+
+  asm volatile("lui a5, 0");
+  asm volatile("addi a0, a5, 0xac" : : : "a0");
+  for(int i = 0; i < 500000000; i++)
+    ;
+  asm volatile("mv %0, a0" : "=r" (a0) );
+
+  printf("a0: %d\n",a0);
+
+  if(a0 != 0xac)
+    printf("test3 failed: register a0 changed\n");
+  else
+    printf("test3 passed\n");
+}
+```
+
+测试点的意思是，要在返回到 trap 发生处时，恢复 a0，我不理解这么做的意义。首先，trapframe 中的寄存器基本都是 trap 发生之前的用户态寄存器，但是 a0 不是。在进行系统调用时，trapframe->a0 会被更改，用来存放系统调用的返回值，这一操作发生在 syscall 中：
+
+```c
+// kernel/syscall.c
+void
+syscall(void)
+{
+  // ...
+  p->trapframe->a0 = syscalls[num]();
+  // ...
+}
+```
+
+因此，当系统调用返回时，a0 就是系统调用的返回值。现在，测试点想要保存 trap 发生之前的 a0，饼在返回后恢复。保存很容易做到，proc 加个字段备份即可。但是恢复呢？直接恢复的话也很简单，在 usertrapret 中更改 trapframe->a0 即可，但是系统调用的返回值存在哪呢？也就是说，a0 本身的作用就是存放系统调用的返回值，这里要把它给恢复了，有点不解。如果在 usertrapret 中进行恢复，那么影响的就是所有的系统调用，他们的返回值都无处存放了。
+
+我选择的解决办法是，不去备份 a0，而是让 sigreturn 直接返回原有的 a0，这样 a0 就还是 trap 发生时的，如此做只会影响 sigreturn，不会涉及到其余系统调用。
+
+```c
+uint64
+sys_sigreturn(void){
+  struct proc* p = myproc();
+  acquire(&p->lock);
+  p->fn_ret = 1;
+  memmove(p->trapframe, p->trapframe_backup, sizeof(struct trapframe));
+  release(&p->lock);
+  return p->trapframe->a0;  // new
+}
+```
+
+但说实话，我不明白这么做的意义是啥。
