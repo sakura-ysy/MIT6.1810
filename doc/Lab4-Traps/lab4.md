@@ -124,7 +124,7 @@ r_fp()
 
 > Your `backtrace()` will need a way to recognize that it has seen the last stack frame, and should stop. A useful fact is that the memory allocated for each kernel stack consists of a single page-aligned page, so that all the stack frames for a given stack are on the same page. You can use `PGROUNDDOWN(fp)` (see `kernel/riscv.h`) to identify the page that a frame pointer refers to
 
-整个栈空间是有个范围的，所有的函数的 Stack Frame 均在其中，可以通过 PGROUNDUP(fp) 和 PGROUNDDOWN(fp) 得到栈空间最高地址与最低地址，因此要通过他们来限制循环。代码如下：
+整个栈空间是有个范围的，所有的函数的 Stack Frame 均在其中，并且每一个栈指针都是 4k 对齐的，因此如果 fp 不是 4k 地址对齐，那么就说明超过范围了。xv6 中通过宏 PGROUNDUP 和 PGROUNDDOWN 分别进行向上对齐和向下对齐，可以通过他们检验 fp 的正确性。代码如下：
 
 ```c
 // kernel/printf.c
