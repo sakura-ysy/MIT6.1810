@@ -29,3 +29,8 @@ MIT6.1810 Operating System Engineering 是麻省理工学院计算机科学本�
 - **Lab: traps**
   - **目标**：探索 RSIC-V 汇编指令集，熟悉 xv6 的 trap 机制。
   - **文档**：[doc-lab4](doc/Lab4-Traps/lab4.md)
+
+- **Lab: Copy-on-Write Fork for xv6**
+  - **目标**：实现写时复制（cow），利用 page fault 进行触发。
+  - **文档**：[doc-lab5](doc/Lab5-Copy_on_Write/lab5.md)
+
