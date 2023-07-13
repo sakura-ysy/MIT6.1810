@@ -383,7 +383,7 @@ struct proc {
   int expired_ticks;
   uint64 fn;
   struct trapframe *trapframe_backup;
-  int fn_ret; // 1-res, 0-not ret
+  int fn_ret; // 1-ret, 0-not ret
 }
 
 static struct proc*
@@ -393,7 +393,7 @@ allocproc(void){
 }
 ```
 
-在 usertrap 中多一层判断，一旦进入，就将其设为 true：
+在 usertrap 中多一层判断，一旦进入，就将其设为 false（not ret）：
 
 ```c
 void
@@ -410,7 +410,7 @@ usertrap(void)
 }
 ```
 
-接下来就是何时将其设为 false 了。起初，我是想在 usertrapret 中设置的，但这样会影响所有的 trap，显然是不合适的。最后，我在 sys_sigreturn 中将其复位。
+接下来就是何时将其设为 true 了。起初，我是想在 usertrapret 中设置的，但这样会影响所有的 trap，显然是不合适的。最后，我在 sys_sigreturn 中将其复位。
 
 ```c
 // kernel/sysalarm.c
