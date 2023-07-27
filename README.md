@@ -36,5 +36,7 @@ MIT6.1810 Operating System Engineering 是麻省理工学院计算机科学本�
   
 - **Lab: Multithreading**
   - **目标**：熟悉 xv6 的线程切换实现机制
-  - **文档**：[doc-lab6](doc/Lab6-Multithreading)
+  - **文档**：[doc-lab6](doc/Lab6-Multithreading/lab6.md)
+
+
 
