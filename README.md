@@ -38,5 +38,8 @@ MIT6.1810 Operating System Engineering 是麻省理工学院计算机科学本�
   - **目标**：熟悉 xv6 的线程切换实现机制
   - **文档**：[doc-lab6](doc/Lab6-Multithreading/lab6.md)
 
+- **Lab: network driver**
+  - **目标**：使用网卡 E1000 完成 xv6 对链路帧的收发。
+  - **文档**：[doc-lab7](doc/Lab7-Network_Driver/lab7.md)
 
 
