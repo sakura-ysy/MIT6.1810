@@ -1,0 +1,16 @@
+*** Now run 'gdb' in another window.
+
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ nettests
+nettests running on port 26099
+testing ping: OK
+testing single-process pings: OK
+testing multi-process pings: OK
+testing DNS
+DNS arecord for pdos.csail.mit.edu. is 128.52.129.126
+invalid name for EDNS
+$ qemu-system-riscv64: terminating on signal 15 from pid 6238 (make)
