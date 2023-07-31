@@ -91,7 +91,7 @@ Caller Saver 和 Callee Saver 是什么意思？
 >
 > [Here's a description of little- and big-endian](http://www.webopedia.com/TERM/b/big_endian.html) and [a more whimsical description](https://www.rfc-editor.org/ien/ien137.txt).
 
-- He110 World。%x 输出 57616 的十六进制格式 110，%s 输出以 &i 为首址的字符串，因为是小端对齐，所以从低地址到高地址依次是 "0x72"、"0x6c"、"0x64"，遇 0 结尾，即 "rld" 。若为大端对齐，i 需要改为 0x726c6400， 57616 不需要改。
+- He110 World。%x 输出 57616 的十六进制格式 e110，%s 输出以 &i 为首址的字符串，因为是小端对齐，所以从低地址到高地址依次是 "0x72"、"0x6c"、"0x64"，遇 0 结尾，即 "rld" 。若为大端对齐，i 需要改为 0x726c6400， 57616 不需要改。
 
 > In the following code, what is going to be printed after `'y='`? (note: the answer is not a specific value.) Why does this happen?
 >
